@@ -1,0 +1,19 @@
+# Environments
+venv/
+.env
+
+# Database and Orchestration
+airflow/
+agent_db
+*.db
+*.sqlite
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Local Data Files (Keep folders, ignore contents)
+docs_to_process/*
+!docs_to_process/.gitkeep
+docs_processed/*
+!docs_processed/.gitkeep
