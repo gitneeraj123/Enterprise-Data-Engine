@@ -1,10 +1,19 @@
+import sys
 import os
+
+# Add the 'src' folder to the Python path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.join(BASE_DIR, 'src')
+sys.path.append(SRC_DIR)
+
+# Import the LangGraph app from main_loop.py inside the src folder
+from main_loop import app as langgraph_app
+
 import streamlit as st
-from main_loop import app as langgraph_app # Import your compiled LangGraph app
 
 # Define project directories
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOCS_TO_PROCESS = os.path.join(BASE_DIR, 'docs_to_process')
+
 
 # Set up page configurations
 st.set_page_config(page_title="Enterprise AI Data Engine", page_icon="🤖", layout="wide")
