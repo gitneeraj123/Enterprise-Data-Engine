@@ -1,11 +1,13 @@
 
 from typing import TypedDict, Optional
 import os
+import logging
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # 1. Define the State Structure
 class AgentState(TypedDict):
@@ -27,10 +29,19 @@ router_prompt = PromptTemplate.from_template(
     """You are an advanced enterprise data routing supervisor. Analyze the user's query and decide whether it requires fetching unstructured text policy or structured database data.
 
     Available Routes:
-    1. 'SQL': Use this ONLY if the user is asking for live transactional records, counting actual employees/sales, or calculating historical metrics from database tables (e.g., "how many people did X", "total sales for yesterday", "list of users").
-    2. 'VECTOR': Use this if the user is asking about corporate rules, policy allowances, guidelines, configurations, or instructions (e.g., "how many days am I ALLOWED to do X", "what is the policy on X", "how do I change my password").
+    1. 'SQL': Use this for any question that needs data from employee or sales tables.
+       This includes named employee lookups (department, joining date, remote status),
+       employee lists/counts, sales/revenue/amounts, invoices, customers, products,
+       regions, dates, and metrics. Examples: "Which department does Asha Sharma
+       work in?", "list Engineering employees", "total sales in March", and
+       "which salesperson has the highest revenue?".
+    2. 'VECTOR': Use this only for unstructured corporate rules, policy allowances,
+       guidelines, configurations, or instructions. Examples: "what is the remote
+       work policy?", "how many days am I allowed to work remotely?", and
+       "how do I change my password?".
 
-    Crucial Edge Case: If a question asks "how many days/hours am I allowed" or "what is the limit for", that is a POLICY question (VECTOR), not a database query.
+    Crucial Edge Case: A policy/rule question remains VECTOR even if it mentions
+    employees. A factual question about a named employee or sales record is always SQL.
 
     Do not output any other text, reasoning, or markdown. Output exactly either 'SQL' or 'VECTOR'.
 
@@ -42,13 +53,16 @@ def router_node(state: AgentState) -> AgentState:
     """
     Analyzes the user query and updates the state with the routing decision.
     """
-    print(f"--- Routing Query: '{state['user_query']}' ---")
+    logger.info("Routing query: %s", state["user_query"])
     
     # Create the chain and execute it
     chain = router_prompt | llm
     decision = chain.invoke({"query": state["user_query"]}).content.strip().upper()
+    if decision not in {"SQL", "VECTOR"}:
+        logger.warning("Unexpected routing decision %r; falling back to VECTOR", decision)
+        decision = "VECTOR"
     
-    print(f"--- Decision: Route to {decision} ---")
+    logger.info("Decision: route to %s", decision)
     
     # We return the updated state dictionary
     return {"route_decision": decision}

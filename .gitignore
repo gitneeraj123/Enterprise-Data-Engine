@@ -1,19 +1,18 @@
 # Environments
-venv/
+.venv/
 .env
+backend/.env
+frontend/.env
 
-# Database and Orchestration
-airflow/
-agent_db
-*.db
-*.sqlite
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
 
-# Python Cache
+# Python cache
 __pycache__/
 *.pyc
 
-# Local Data Files (Keep folders, ignore contents)
-docs_to_process/*
-!docs_to_process/.gitkeep
-docs_processed/*
-!docs_processed/.gitkeep
+# Local databases and editor files
+*.db
+*.sqlite
+.DS_Store

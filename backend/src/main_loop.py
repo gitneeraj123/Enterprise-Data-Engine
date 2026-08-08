@@ -1,23 +1,38 @@
 from langgraph.graph import StateGraph, END
-from agent_graph import AgentState, router_node, llm
+import logging
+
+from .agent_graph import AgentState, router_node, llm
 from langchain_core.prompts import PromptTemplate
-from sql_tool import execute_sql
-from vector_tool import retrieve_documents
+from .sql_tool import execute_sql
+from .vector_tool import retrieve_documents
 from langchain_tavily import TavilySearch
+
+logger = logging.getLogger(__name__)
 sql_generation_prompt = PromptTemplate.from_template(
     """You are an expert SQL engineer. Convert the user's question into a valid PostgreSQL query.
     Database Schema:
     - Table: employees (id, name, department, is_remote: BOOLEAN, join_date)
-    Rules: Only return raw SQL. No markdown. No explanations.
+    - Table: sales (id, employee_id, sale_date, invoice_no, customer_name, product,
+      category, region, channel, amount, status)
+    - Relationship: sales.employee_id joins employees.id.
+    Rules:
+    - Only return raw SQL. No markdown. No explanations.
+    - Text values in the database may have different capitalization from the user's
+      wording. For every TEXT/VARCHAR comparison, use case-insensitive matching:
+      use `ILIKE` for literal text comparisons (for example,
+      `department ILIKE 'engineering'`) or `LOWER(column) = LOWER('value')`.
+    - Keep normal exact comparisons for IDs, numbers, dates, and booleans.
+    - Use the employees/sales relationship when the question asks for employee names
+      alongside sales values, or sales grouped by employee or department.
     User Question: {question}
     SQL Query:"""
 )
 
 def sql_action_node(state: AgentState) -> AgentState:
-    print("\n[Executing Live Text-to-SQL Agent]")
+    logger.info("Executing live text-to-SQL agent")
     chain = sql_generation_prompt | llm
     generated_sql = chain.invoke({"question": state["user_query"]}).content.strip()
-    print(f"-> Generated SQL: {generated_sql}")
+    logger.info("Generated SQL: %s", generated_sql)
     
     # Execute the query
     result = execute_sql(generated_sql)
@@ -28,7 +43,7 @@ def sql_action_node(state: AgentState) -> AgentState:
     return {"retrieved_context": rich_context}
 
 def vector_action_node(state: AgentState) -> AgentState:
-    print("\n[Executing Vector Agent]")
+    logger.info("Executing vector agent")
     result = retrieve_documents(state["user_query"])
     return {"retrieved_context": result}
 
@@ -44,7 +59,7 @@ response_generation_prompt = PromptTemplate.from_template(
 )
 
 def responder_node(state: AgentState) -> AgentState:
-    print("\n[Executing Final Responder Agent]")
+    logger.info("Executing final responder agent")
     chain = response_generation_prompt | llm
     final_answer = chain.invoke({
         "question": state["user_query"],
@@ -68,16 +83,16 @@ evaluator_prompt = PromptTemplate.from_template(
 
 # 2. The Evaluator Node
 def evaluator_node(state: AgentState) -> AgentState:
-    print("\n[Executing Evaluator Guardrail]")
+    logger.info("Executing evaluator guardrail")
     context = state.get("retrieved_context", "")
     
     # Check A: Did the SQL Agent fail?
     if state["route_decision"] == "SQL":
         if "SQL Execution Error" in context:
-            print("-> SQL Syntax Error Detected. Forcing loop back to SQL Agent.")
+            logger.info("SQL syntax error detected; retrying SQL agent")
             return {"context_grade": "FAIL_SQL"}
         else:
-            print("-> SQL Data Valid.")
+            logger.info("SQL data valid")
             return {"context_grade": "PASS"}
             
     # Check B: Did the Vector Agent pull bad text?
@@ -87,17 +102,17 @@ def evaluator_node(state: AgentState) -> AgentState:
         "context": context
     }).content.strip().upper()
     
-    print(f"-> Vector Context Grade: {grade}")
+    logger.info("Vector context grade: %s", grade)
     return {"context_grade": "FAIL_TEXT" if "FAIL" in grade else "PASS"}
 
 # 3. The Web Search Fallback Node
 def web_search_node(state: AgentState) -> AgentState:
-    print("\n[Executing Web Search Fallback]")
+    logger.info("Executing web-search fallback")
     try:
         # Initialize TavilySearch
         search = TavilySearch(max_results=2)
         results = search.invoke(state["user_query"])
-        print(f"Web search results: {results}")  # Debugging the structure of results
+        logger.info("Web search completed")
 
         # Access the 'results' key in the dictionary
         search_results = results.get('results', [])
@@ -105,8 +120,8 @@ def web_search_node(state: AgentState) -> AgentState:
         # Format the web results into a single string
         formatted_results = "\n".join([f"- {r['content']}" for r in search_results])
         return {"retrieved_context": f"Web Search Fallback Results:\n{formatted_results}"}
-    except Exception as e:
-        print(f"Error during web search: {e}")
+    except Exception:
+        logger.exception("Web search failed")
         return {"retrieved_context": "Web search failed."}
 
 
@@ -131,7 +146,7 @@ def route_decision(state: AgentState) -> str:
         return "vector_path"
 
 # 4. Build the Compiled Flowchart Graph
-print("Compiling Agent Graph...")
+logger.info("Compiling agent graph")
 workflow = StateGraph(AgentState)
 
 # Add ALL nodes to the graph
@@ -173,8 +188,8 @@ workflow.add_edge("responder", END)
 app = workflow.compile()
 
 if __name__ == "__main__":
-    print("\n=== SYSTEM TEST: CRAG Web Fallback ===")
+    logger.info("System test: CRAG web fallback")
     # This policy doesn't exist in our DB!
     test_crag = {"user_query": "Why Can’t You Add Data with a Non-Matching Foreign Key?"}
     final_state = app.invoke(test_crag)
-    print(f"👉 FINAL AI RESPONSE: {final_state['final_answer']}")
+    logger.info("Final AI response: %s", final_state["final_answer"])
