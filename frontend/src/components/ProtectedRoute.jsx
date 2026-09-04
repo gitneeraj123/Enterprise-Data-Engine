@@ -1,9 +1,10 @@
 import { Navigate, Outlet } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 
 export default function ProtectedRoute({ adminOnly = false }) {
-  const token = localStorage.getItem('token')
-  const role = localStorage.getItem('role')
-  if (!token) return <Navigate to="/login" replace />
-  if (adminOnly && role !== 'admin') return <Navigate to="/chat" replace />
+  const { loading, user } = useAuth()
+  if (loading) return <main className="auth">Checking session…</main>
+  if (!user) return <Navigate to="/login" replace />
+  if (adminOnly && user.role !== 'admin') return <Navigate to="/chat" replace />
   return <Outlet />
 }

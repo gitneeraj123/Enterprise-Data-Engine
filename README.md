@@ -52,6 +52,12 @@ and `SQL_AGENT_DB_URL` to the restricted role connection URL. Add your Groq,
 Tavily, JWT, and initial-admin values there. Set `VITE_API_URL` in
 `frontend/.env` to the backend URL (normally `http://localhost:8000`).
 
+Authentication uses a JWT in an HttpOnly cookie; it is never returned to or
+stored by the frontend. In production, serve the API over HTTPS and leave
+`COOKIE_SECURE=true` (the default). For local HTTP development only, add
+`COOKIE_SECURE=false` to `backend/.env`. `COOKIE_SAMESITE` defaults to `lax`;
+set it to `none` only for a cross-site frontend and HTTPS deployment.
+
 On first backend startup, `app_users` and `documents` are created and exactly
 one administrator is seeded from `INITIAL_ADMIN_USERNAME` and
 `INITIAL_ADMIN_PASSWORD` when the user table is empty.

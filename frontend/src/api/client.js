@@ -1,11 +1,13 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 async function request(path, options = {}) {
-  const token = localStorage.getItem('token')
   const headers = new Headers(options.headers || {})
-  if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers })
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: 'include',
+  })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
     throw new Error(body.detail || 'Request failed')
@@ -19,6 +21,14 @@ export function login(username, password) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   })
+}
+
+export function getCurrentUser() {
+  return request('/api/me')
+}
+
+export function logout() {
+  return request('/api/logout', { method: 'POST' })
 }
 
 export function sendChat(query) {

@@ -4,8 +4,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import HTTPException, Request, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -15,8 +14,8 @@ load_dotenv()
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8
+AUTH_COOKIE_NAME = os.getenv("AUTH_COOKIE_NAME", "access_token")
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _jwt_secret() -> str:
@@ -42,6 +41,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     return jwt.encode(payload, _jwt_secret(), algorithm=ALGORITHM)
 
 
+def get_auth_cookie_options() -> dict[str, str | bool]:
+    """Return validated cookie settings shared by login and logout."""
+    secure = os.getenv("COOKIE_SECURE", "true").lower() in {"1", "true", "yes"}
+    same_site = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    if same_site not in {"lax", "strict", "none"}:
+        raise RuntimeError("COOKIE_SAMESITE must be lax, strict, or none.")
+    if same_site == "none" and not secure:
+        raise RuntimeError("COOKIE_SECURE must be enabled when COOKIE_SAMESITE is none.")
+    return {"httponly": True, "secure": secure, "samesite": same_site, "path": "/"}
+
+
 def decode_access_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
@@ -56,16 +66,14 @@ def decode_access_token(token: str) -> dict:
         ) from exc
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> dict:
-    if credentials is None:
+def get_current_user(request: Request) -> dict:
+    token = request.cookies.get(AUTH_COOKIE_NAME)
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"},
         )
-    payload = decode_access_token(credentials.credentials)
+    payload = decode_access_token(token)
     user = get_user(payload["sub"])
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer exists")
