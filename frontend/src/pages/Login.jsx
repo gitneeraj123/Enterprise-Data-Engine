@@ -1,20 +1,22 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { login } from '../api/client'
+import { Navigate, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 
 export default function Login() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const { loading, signIn, user } = useAuth()
+
+  if (loading) return <main className="auth">Checking session…</main>
+  if (user) return <Navigate to="/chat" replace />
 
   async function submit(event) {
     event.preventDefault()
     setError('')
     try {
-      const response = await login(username, password)
-      localStorage.setItem('token', response.access_token)
-      localStorage.setItem('role', response.role)
+      await signIn(username, password)
       navigate('/chat')
     } catch (err) { setError(err.message) }
   }
