@@ -48,8 +48,8 @@ jobs:
 
       - name: Tag Docker images
         run: |
-          docker tag enterprise_data_engine-backend ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-backend:${{ github.sha }}
-          docker tag enterprise_data_engine-frontend ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-frontend:${{ github.sha }}
+          docker tag "$(docker compose images -q backend)" ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-backend:${{ github.sha }}
+          docker tag "$(docker compose images -q frontend)" ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-frontend:${{ github.sha }}
 
       - name: Verify Docker image tags
         run: docker images
