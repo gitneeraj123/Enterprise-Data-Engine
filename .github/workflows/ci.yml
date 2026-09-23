@@ -54,7 +54,7 @@ jobs:
       - name: Verify Docker image tags
         run: docker images
 
-      # - name: Push Docker images to GHCR
-      #   run: |
-      #     docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-backend:${{ github.sha }}
-      #     docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-frontend:${{ github.sha }}
+      - name: Push Docker images to GHCR
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-backend:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-frontend:${{ github.sha }}
