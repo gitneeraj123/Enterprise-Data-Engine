@@ -31,3 +31,6 @@ jobs:
       - name: Run tests
         working-directory: backend
         run: pytest
+
+      - name: Build Docker images
+        run: docker compose build
