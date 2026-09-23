@@ -46,15 +46,13 @@ jobs:
       - name: Build Docker images
         run: docker compose build
 
-      - name: Tag Docker images
-        run: |
-          docker tag "$(docker compose images -q backend)" ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-backend:${{ github.sha }}
-          docker tag "$(docker compose images -q frontend)" ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-frontend:${{ github.sha }}
-
-      - name: Verify Docker image tags
+      - name: List Docker images
         run: docker images
 
-      - name: Push Docker images to GHCR
-        run: |
-          docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-backend:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-frontend:${{ github.sha }}
+      # - name: Verify Docker image tags
+      #   run: docker images
+
+      # - name: Push Docker images to GHCR
+      #   run: |
+      #     docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-backend:${{ github.sha }}
+      #     docker push ghcr.io/${{ github.repository_owner }}/enterprise-data-engine-frontend:${{ github.sha }}
