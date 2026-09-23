@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException,Depends, Request, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
