@@ -44,6 +44,8 @@ jobs:
         run: pytest
 
       - name: Build Docker images
+        env:
+          VITE_API_URL: http://${{ vars.EC2_PUBLIC_IP }}:8000
         run: docker compose build
 
       - name: Tag Docker images
